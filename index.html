@@ -38,14 +38,14 @@ textarea{min-height:90px}
 .qty{display:flex;align-items:center;gap:8px}.qty button{width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:20px;cursor:pointer}
 .qty span{min-width:22px;text-align:center;font-weight:600}
 .tot{display:flex;gap:10px}.tot>div{flex:1}.tot b{display:block;font-size:20px}
-.low{color:var(--bad);font-weight:600}.hide{display:none}.sc{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}.sc b{display:block;font-size:19px}
+.low{color:var(--bad);font-weight:600}.hide{display:none!important}.sc{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}.sc b{display:block;font-size:19px}
 .warn{border-color:var(--bad);color:var(--bad);font-size:14px}
-.ov{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:14px;z-index:20}.ov.hide{display:none}
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:14px;z-index:20}.ov.hide{display:none!important}
 .ov .box{background:var(--card);border-radius:16px;padding:16px;width:100%;max-width:420px;max-height:90vh;overflow:auto}
 pre{font:13px/1.35 ui-monospace,Menlo,Consolas,monospace;white-space:pre;overflow-x:auto;background:var(--bg);padding:10px;border-radius:10px;margin:8px 0}
 
 .drawer{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;display:flex;transition:0.2s}
-.drawer.hide{display:none}
+.drawer.hide{display:none!important}
 .drawer-content{width:280px;background:var(--card);height:100%;padding:20px;overflow-y:auto;display:flex;flex-direction:column;gap:8px}
 .drawer-content h3{margin:0 0 10px 0;font-size:18px;color:var(--acc)}
 .drawer-item{padding:12px;border-radius:8px;background:var(--bg);cursor:pointer;font-size:15px;font-weight:500;border:1px solid var(--line);display:flex;align-items:center;gap:10px}
@@ -67,18 +67,18 @@ pre{font:13px/1.35 ui-monospace,Menlo,Consolas,monospace;white-space:pre;overflo
 
 <div id="warn" class="card warn hide">This phone can’t save data in this browser. Open this file in Chrome from your Files app.</div>
 
-<div id="auth-card" class="card hide">
-  <h2 id="auth-title">Sign In</h2>
+<div id="auth-card" class="card">
+  <h2 id="auth-title">Initial Admin Setup</h2>
   <div id="auth-form">
     <label for="authu">Username</label>
     <input id="authu" placeholder="Username" autocomplete="username">
     <label for="authp">Password</label>
     <input id="authp" type="password" placeholder="••••••••" autocomplete="current-password">
-    <div id="reg-extra" class="hide">
+    <div id="reg-extra">
       <label for="authn">Full Name</label>
       <input id="authn" placeholder="e.g. Milton">
     </div>
-    <button class="go" id="authgo">Login</button>
+    <button class="go" id="authgo">Create Admin Account</button>
     <div class="msg" id="authmsg"></div>
   </div>
 </div>
@@ -273,7 +273,7 @@ pre{font:13px/1.35 ui-monospace,Menlo,Consolas,monospace;white-space:pre;overflo
 
 <script>
 (function(){
-var SK="salestrack_v1",COLS=["items","stockin","sales","tx","exp","audit","users"];
+var SK="salestrack_v2",COLS=["items","stockin","sales","tx","exp","audit","users"];
 var S={items:{},stockin:{},sales:{},tx:{},exp:{},audit:{},users:{},del:{},me:"",role:"",userKey:"",lastImp:0,lastSent:0,set:{biz:"Sales Track Point",pw:32,foot:"Thank you!"},dirty:[],live:null,seeded:false};
 var memOnly=false,cart={};
 var $=function(i){return document.getElementById(i)};
@@ -282,10 +282,15 @@ function money(n){return "$"+(Math.round(n*100)/100).toFixed(2)}
 function key(n){return String(n||"").trim().toLowerCase().replace(/\s+/g," ")}
 function rid(){return "t"+Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
 
-async function hashPass(password) {
-  const enc = new TextEncoder().encode(password);
-  const hash = await crypto.subtle.digest('SHA-256', enc);
-  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+function hashPassSync(str) {
+  var hash = 0, i, chr;
+  if (!str) return "0";
+  for (i = 0; i < str.length; i++) {
+    chr = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + chr;
+    hash |= 0;
+  }
+  return "h_" + Math.abs(hash);
 }
 
 function load(){try{var r=localStorage.getItem(SK);if(r){var o=JSON.parse(r);Object.keys(S).forEach(function(k){if(o[k]!==undefined)S[k]=o[k]})}}catch(e){memOnly=true}}
@@ -349,7 +354,7 @@ function checkAuthShell(){
   }
 }
 
-$("authgo").onclick = async function(){
+$("authgo").onclick = function(){
   var u = key($("authu").value);
   var p = $("authp").value;
   var uList = Object.keys(S.users);
@@ -359,13 +364,13 @@ $("authgo").onclick = async function(){
   if(uList.length === 0){
     var n = $("authn").value.trim();
     if(!n) return say("authmsg", "Enter full name.", true);
-    var passHash = await hashPass(p);
+    var passHash = hashPassSync(p);
     put("users", u, { name: n, user: u, pass: passHash, role: "Administrator", ts: Date.now() }, "Admin Created", n);
     S.me = n; S.role = "Administrator"; S.userKey = u;
     save();
     checkAuthShell();
   } else {
-    var passHash = await hashPass(p);
+    var passHash = hashPassSync(p);
     var found = S.users[u];
     if(found && found.pass === passHash){
       S.me = found.name;
@@ -380,7 +385,7 @@ $("authgo").onclick = async function(){
   }
 };
 
-$("regGo").onclick = async function(){
+$("regGo").onclick = function(){
   var n = $("rname").value.trim();
   var u = key($("ruser").value);
   var p = $("rpass").value;
@@ -389,7 +394,7 @@ $("regGo").onclick = async function(){
   if(!n || !u || !p) return say("regMsg", "Fill all fields.", true);
   if(S.users[u]) return say("regMsg", "Username already exists.", true);
 
-  var passHash = await hashPass(p);
+  var passHash = hashPassSync(p);
   put("users", u, { name: n, user: u, pass: passHash, role: r, ts: Date.now() }, "User Registered", n + " (" + r + ")");
   $("rname").value = ""; $("ruser").value = ""; $("rpass").value = "";
   say("regMsg", "User registered successfully!");
@@ -559,8 +564,7 @@ $("save").onclick=function(){
 
 /* ---- receipts ---- */
 var curRcpt="";
-function ascii(t){return String(t).replace(/[   ]/g," ").replace(/[‘’]/g,"'").replace(/[“”]/g,'"').replace(/×/g,"x").replace(/[–—]/g,"-").replace(/[^ -~
-]/g,"?")}
+function ascii(t){return String(t).replace(/[   ]/g," ").replace(/[‘’]/g,"'").replace(/[“”]/g,'"').replace(/×/g,"x").replace(/[–—]/g,"-").replace(/[^ -~\n]/g,"?")}
 function padLR(l,r,w){l=ascii(l);r=ascii(r);if(l.length+r.length+1>w)l=l.slice(0,Math.max(1,w-r.length-1));return l+Array(w-l.length-r.length+1).join(" ")+r}
 function ctr(t,w){t=ascii(t).slice(0,w);return Array(Math.floor((w-t.length)/2)+1).join(" ")+t}
 function receiptText(s){
@@ -573,8 +577,7 @@ function receiptText(s){
   o.push(ln);o.push(padLR("TOTAL",money(s.total),w));
   o.push("Paid: "+({cash:"Cash",credit:"On credit",change:"From change"}[s.pay]||s.pay));
   o.push(ln);o.push(ctr(S.set.foot||"Thank you!",w));
-  return ascii(o.join("
-"))}
+  return ascii(o.join("\n"))}
 function showReceipt(s){curRcpt=receiptText(s);$("rtxt").textContent=curRcpt;$("rmsg").textContent="";$("rcpt").classList.remove("hide")}
 $("rclose").onclick=function(){$("rcpt").classList.add("hide")};
 $("rprint").onclick=function(){var by=[0x1B,0x40],i,bin="";for(i=0;i<curRcpt.length;i++)by.push(curRcpt.charCodeAt(i));by.push(0x1B,0x64,0x04);
@@ -585,7 +588,7 @@ $("pset").onclick=function(){S.set={biz:$("pbiz").value.trim()||"Sales Track Poi
 $("ptest").onclick=function(){showReceipt({ts:Date.now(),by:S.me,total:2.5,pay:"cash",cust:"",lines:[{qty:1,name:"Test item",price:2.5}]})};
 
 /* ---- sync ---- */
-function pack(){return JSON.stringify({app:"sales-track",v:1,from:S.me,ts:Date.now(),items:S.items,stockin:S.stockin,sales:S.sales,tx:S.tx,exp:S.exp,audit:S.audit,users:S.users,del:S.del})}
+function pack(){return JSON.stringify({app:"sales-track",v:2,from:S.me,ts:Date.now(),items:S.items,stockin:S.stockin,sales:S.sales,tx:S.tx,exp:S.exp,audit:S.audit,users:S.users,del:S.del})}
 function mergeIn(txt){
   var o;try{o=JSON.parse(txt)}catch(e){return -1}
   if(!o||o.app!=="sales-track")return -1;
